@@ -16,7 +16,7 @@ The ArubaEdge Config Generator is a tool designed to simplify the creation of Ar
 ## Installation
 1. Clone the repository:
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/SThomson29/ArubaEdgeConfigGen
     ```
 2. Install dependencies:
     ```bash
