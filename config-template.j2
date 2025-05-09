@@ -1,0 +1,206 @@
+!
+hostname {{ hostname }}
+banner motd !
+ Logging is enabled for this device. Your session is monitored. 
+!
+banner exec !
+***************************************************************************
+*  Any attempt or actual access to this system without the proper         *
+*  authority is a breach of the United Kingdom Computer Misuse Act (1990).*
+*      All access to this device is monitored and logged, which           *
+*        may be used in evidence for criminal prosecution.                *
+***************************************************************************
+!
+user {{ admin_user }} group administrators password plaintext {{ password }}
+user {{ admin_user2 }} group administrators password plaintext {{ password2 }}
+clock timezone gb
+loop-protect re-enable-timer 1800
+loop-protect trap loop-detected
+ntp server {{ ntp1 }}
+ntp server {{ ntp2 }}
+ntp enable
+!
+radius-server key plaintext {{ radius }}
+radius-server service-type in-access-request
+!
+radius-server host {{ radius_fqdn }} key plaintext {{ radius }}
+!
+aaa group server radius ClearPass
+    server {{ radius_fqdn }}
+!
+aaa accounting all-mgmt default start-stop group ClearPass
+aaa accounting port-access start-stop interim 5 group ClearPass
+!
+radius dyn-authorization enable
+!
+radius dyn-authorization client {{ radius_ip }} secret-key plaintext {{ radius }}
+radius dyn-authorization client {{ radius_ip2 }} secret-key plaintext {{ radius }}
+aruba-central
+    disable
+logging {{ syslog_ip }} include-auditable-events
+ssh server vrf default
+vsf secondary-member 2
+dhcpv4-snooping
+dhcpv4-snooping authorized-server 10.10.10.7
+dhcpv4-snooping authorized-server 10.10.10.8
+no dhcpv4-snooping verify mac
+client track ip
+{% for member in members -%}
+vsf member {{ member.number }}
+    type {{ member.serial }}
+    link 1 {{ member.link1 }}
+    link 2 {{ member.link2 }}
+{% endfor -%}
+!
+vlan 1
+vlan 1681
+    name Management
+    client track ip 
+    dhcpv4-snooping
+vlan 3000
+    name Trusted-Staff
+    client track ip 
+    dhcpv4-snooping
+vlan 3001
+    name Untrusted-Staff
+    client track ip 
+    dhcpv4-snooping
+vlan 3010
+    name Trusted-Student
+    client track ip 
+    dhcpv4-snooping
+vlan 3011
+    name Untrusted-Student
+    client track ip 
+    dhcpv4-snooping
+vlan 3020
+    name Federated
+    client track ip 
+    dhcpv4-snooping
+vlan 3030
+    name Aruba-APs
+    client track ip 
+    dhcpv4-snooping
+vlan 3040
+    name AV-Devices
+    client track ip 
+    dhcpv4-snooping
+vlan 3050
+    name Digital-Signage
+    client track ip 
+    dhcpv4-snooping
+vlan 3060
+    name Lab-Equipment
+    client track ip 
+    dhcpv4-snooping
+vlan 3070
+    name Library
+    client track ip 
+    dhcpv4-snooping
+vlan 3080
+    name Printers
+    client track ip 
+    dhcpv4-snooping
+vlan 3090
+    name Tills-PDQ
+    client track ip 
+    dhcpv4-snooping
+vlan 3100
+    name Video-Conference
+    client track ip 
+    dhcpv4-snooping
+vlan 3110
+    name VOIP-Phones
+    client track ip 
+    dhcpv4-snooping
+vlan 3120
+    name Wired-Guest
+    client track ip 
+    dhcpv4-snooping
+spanning-tree
+spanning-tree bpdu-guard timeout 1800
+interface mgmt
+    no shutdown
+    ip dhcp
+port-access role Unauth
+    vlan access 3120
+aaa authentication port-access dot1x authenticator
+    radius server-group ClearPass
+    enable
+aaa authentication port-access mac-auth
+    radius server-group ClearPass
+    enable
+interface lag 1
+    description Uplink-to-Core
+    no shutdown
+    no routing
+    vlan trunk native 1681
+    vlan trunk allowed 3000-3001,3010-3011,3020,3030,3040,3050,3060,3070,3080,3090,3100,3110,3120
+    lacp mode active
+!
+{% for interface in interfaces -%}
+interface {{ interface.name }}
+  {% if interface.port_type == "uplink1" -%}
+    description {{ uplink }}
+    no shutdown
+    lag 1
+  !
+  {% elif interface.port_type == "uplink2" -%}
+    description {{ uplink }}
+    no shutdown
+    lag 1
+  !
+  {% else -%}
+    no shutdown
+    no routing
+    vlan access 3000
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    spanning-tree root-guard
+    spanning-tree tcn-guard
+    loop-protect
+    loop-protect vlan 1,3000-3001,3010-3011,3020,3030,3040,3050,3060,3070,3080,3090,3100,3110,3120
+    loop-protect action tx-rx-disable
+    port-access fallback-role Unauth
+    port-access onboarding-method concurrent enable
+    aaa authentication port-access allow-cdp-bpdu
+    aaa authentication port-access allow-lldp-bpdu
+    aaa authentication port-access client-limit 25
+    port-access allow-flood-traffic enable
+    aaa authentication port-access dot1x authenticator
+        cached-reauth
+        cached-reauth-period 86400
+        reauth
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        reauth
+        enable
+!
+  {% endif %}
+{%- endfor -%}
+interface vlan 1681
+    description Untrusted
+    ip address {{ vl1_ip }}
+!
+snmp-server vrf default
+snmp-server trap-source interface vlan1681 vrf default
+snmp-server system-description {{ hostname }}
+snmp-server system-location {{ system_loc }}
+snmp-server community {{ snmp_community }}
+snmp-server host {{ nms_ip }} inform version v2c community {{ snmp_community }}
+ip dns domain-name {{ fqdn }}
+ip dns server-address {{ dns1 }}
+ip dns server-address {{ dns2 }}
+!
+!
+!
+!
+ip source-interface radius interface vlan1681
+ip source-interface ntp interface vlan1681
+ip source-interface syslog interface vlan1681
+ip source-interface ubt interface vlan1681
+ip source-interface dns interface vlan1681
+https-server vrf default
+!

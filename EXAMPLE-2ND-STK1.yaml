@@ -1,0 +1,31 @@
+---
+hostname: EXAMPLE-2ND-STK1
+interfaces:
+  - name: 1/1/1-1/1/48
+    port_type: access
+  - name: 2/1/1-2/1/48
+    port_type: access
+  - name: 3/1/1-3/1/48
+    port_type: access
+  - name: 1/1/52
+    port_type: uplink1
+  - name: 3/1/52
+    port_type: uplink2
+members:
+  - number: 1
+    serial: test-serial
+    link 1: 1/1/49
+    link 2: 1/1/50
+  - number: 2
+    serial: test-serial
+    link 1: 2/1/49
+    link 2: 2/1/50
+  - number: 3
+    serial: test-serial
+    link 1: 3/1/49
+    link 2: 3/1/50
+uplink: Link-To-Core
+radius: test-radius
+password: Test-Password
+password2: Test-Password2
+vl1_ip: 10.10.10.12/24
